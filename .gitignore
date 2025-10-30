@@ -1,0 +1,25 @@
+# Dependencies
+# Ignore node_modules directory in the root if you install dependencies there
+# If you only install them in backend/ and frontend/, you might not need this.
+# It's safer to include it.
+node_modules
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS and Editor generated files
+.DS_Store
+.vscode/
+
+# Build artifacts for the root (less common in a monorepo, but good practice)
+dist/
+build/
+.env
+
+# Optional: If you use a tool like Lerna or Yarn Workspaces, you might add
+# Lerna/Yarn Workspaces files here if they generate files at the root.
