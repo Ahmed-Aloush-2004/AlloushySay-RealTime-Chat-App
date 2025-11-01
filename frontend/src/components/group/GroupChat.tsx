@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Paperclip, X, Mic, StopCircle, Download, Play, Pause, Volume2, Image, FileVideo, FileAudio, File, Crown } from 'lucide-react';
+import { Send, Paperclip, X, Mic, StopCircle, Download, Play, Pause, Volume2, Image, FileVideo, FileAudio, File as FileIcon, Crown } from 'lucide-react';
 import GroupTypingIndicator from './GroupTypingIndicator';
 import { useGroupStore } from '../../stores/groupStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useParams } from 'react-router-dom';
-import { fileAPI } from '../../services/api';
 import type { FileUploadResponse } from '../../common/interfaces/fileUploadResponse';
 import type { Message } from '../../common/interfaces/message';
+import { useSocketStore } from '../../stores/socketStore';
+import { useApiStore } from '../../stores/apiStore';
 
 // Using a more reliable path for the notification sound
 const NOTIFICATION_SOUND_URL = '/sounds/notification.mp3';
@@ -28,7 +29,7 @@ const getFileIcon = (type: string) => {
   if (type.startsWith('image/')) return <Image className="w-5 h-5" />;
   if (type.startsWith('video/')) return <FileVideo className="w-5 h-5" />;
   if (type.startsWith('audio/')) return <FileAudio className="w-5 h-5" />;
-  return <File className="w-5 h-5" />;
+  return <FileIcon className="w-5 h-5" />;
 };
 
 // Custom Audio Player Component
@@ -36,6 +37,7 @@ const CustomAudioPlayer: React.FC<{ src: string; isCurrentUser: boolean }> = ({ 
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+  const [error, setError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
@@ -45,16 +47,24 @@ const CustomAudioPlayer: React.FC<{ src: string; isCurrentUser: boolean }> = ({ 
     const setAudioData = () => {
       setDuration(audio.duration);
       setCurrentTime(audio.currentTime);
+      setError(null);
     };
 
     const setAudioTime = () => setCurrentTime(audio.currentTime);
 
+    const handleAudioError = (e: Event) => {
+      console.error('Audio error:', e);
+      setError('Failed to load audio');
+    };
+
     audio.addEventListener('loadeddata', setAudioData);
     audio.addEventListener('timeupdate', setAudioTime);
+    audio.addEventListener('error', handleAudioError);
 
     return () => {
       audio.removeEventListener('loadeddata', setAudioData);
       audio.removeEventListener('timeupdate', setAudioTime);
+      audio.removeEventListener('error', handleAudioError);
     };
   }, [src]);
 
@@ -65,7 +75,10 @@ const CustomAudioPlayer: React.FC<{ src: string; isCurrentUser: boolean }> = ({ 
     if (isPlaying) {
       audio.pause();
     } else {
-      audio.play();
+      audio.play().catch(err => {
+        console.error('Failed to play audio:', err);
+        setError('Failed to play audio');
+      });
     }
     setIsPlaying(!isPlaying);
   };
@@ -85,6 +98,14 @@ const CustomAudioPlayer: React.FC<{ src: string; isCurrentUser: boolean }> = ({ 
     const seconds = Math.floor(time % 60);
     return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
   };
+
+  if (error) {
+    return (
+      <div className={`flex items-center gap-2 p-2 rounded-lg ${isCurrentUser ? 'bg-primary/20' : 'bg-base-200'}`}>
+        <div className="text-error text-sm">{error}</div>
+      </div>
+    );
+  }
 
   return (
     <div className={`flex items-center gap-2 p-2 rounded-lg ${isCurrentUser ? 'bg-primary/20' : 'bg-base-200'}`}>
@@ -258,6 +279,7 @@ const MessageComponent: React.FC<{
 
 const GroupChat: React.FC = () => {
   const { id: groupId } = useParams();
+  const { fileAPI }  = useApiStore()
   if (!groupId) {
     throw new Error("GroupId must be provided");
   }
@@ -281,9 +303,12 @@ const GroupChat: React.FC = () => {
     leaveGroup,
     fetchGroupById,
     setCurrentGroup,
-    initializeSocket,
-    clearError
+    clearError,
+    setUserTyping,
+    removeUserTyping,
+    addNewGroupMessage,
   } = useGroupStore();
+  const { socket,initializeSocket } = useSocketStore()
 
   const { user } = useAuthStore();
   const [message, setMessage] = useState('');
@@ -292,11 +317,11 @@ const GroupChat: React.FC = () => {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Track if we should scroll to bottom on new messages
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const [previousMessageCount, setPreviousMessageCount] = useState(0);
-  
+
   // Notification sound ref
   const notificationSoundRef = useRef<HTMLAudioElement | null>(null);
 
@@ -305,6 +330,8 @@ const GroupChat: React.FC = () => {
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  // Add state for upload errors
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   // Audio Recording States
   const [isRecording, setIsRecording] = useState(false);
@@ -314,6 +341,8 @@ const GroupChat: React.FC = () => {
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [recordingError, setRecordingError] = useState<string | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   // Image Modal State
   const [imageModalOpen, setImageModalOpen] = useState(false);
@@ -327,7 +356,7 @@ const GroupChat: React.FC = () => {
 
     // Try to load the sound to ensure it's ready
     notificationSoundRef.current.load();
-    
+
     return () => {
       if (notificationSoundRef.current) {
         notificationSoundRef.current.pause();
@@ -356,7 +385,7 @@ const GroupChat: React.FC = () => {
   // Handle scroll events to determine if we should auto-scroll
   const handleScroll = useCallback(() => {
     if (!messagesContainerRef.current) return;
-    
+
     const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
     // If we're within 100px of the bottom, enable auto-scroll
     const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
@@ -367,17 +396,17 @@ const GroupChat: React.FC = () => {
   useEffect(() => {
     const messages = groupId ? (groupMessages[groupId] || []) : [];
     const currentMessageCount = messages.length;
-    
+
     // If we have new messages and we're not the sender
     if (currentMessageCount > previousMessageCount && previousMessageCount > 0) {
       const lastMessage = messages[messages.length - 1];
-      
+
       // Only play notification if the message is not from the current user
       if (lastMessage && lastMessage.sender !== user?._id) {
         playNotificationSound();
       }
     }
-    
+
     setPreviousMessageCount(currentMessageCount);
   }, [groupMessages, groupId, previousMessageCount, user?._id, playNotificationSound]);
 
@@ -394,11 +423,53 @@ const GroupChat: React.FC = () => {
     }
   }, [groupId, fetchGroupById]);
 
+  // Initialize socket
   useEffect(() => {
-    if (user) {
+    if (user && !socket) {
       initializeSocket(user._id);
-    } 
+    }
   }, [user, initializeSocket]);
+
+  // Listen for incoming messages from the server
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewGroupMessage = (data: { groupId: string; message: Message }) => {
+      console.log('New message received:', data);
+      // Add the message to the store
+      addNewGroupMessage(data.groupId, data.message);
+    };
+
+    socket.on('newGroupMessage', handleNewGroupMessage);
+
+    // Cleanup the listener when the component unmounts or socket changes
+    return () => {
+      socket.off('newGroupMessage', handleNewGroupMessage);
+    };
+  }, [socket, addNewGroupMessage]);
+
+  // Handle groupTypingUpdate events
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleGroupTypingUpdate = (data: { groupId: string; senderId: string; isTyping: boolean }) => {
+      const { groupId, senderId, isTyping } = data;
+      
+      if (senderId === user?._id) return;
+      
+      if (isTyping) {
+        setUserTyping(groupId, senderId);
+      } else {
+        removeUserTyping(groupId, senderId);
+      }
+    };
+
+    socket.on('groupTypingUpdate', handleGroupTypingUpdate);
+
+    return () => {
+      socket.off('groupTypingUpdate', handleGroupTypingUpdate);
+    };
+  }, [socket, user?._id, setUserTyping, removeUserTyping]);
 
   // Handle errors
   useEffect(() => {
@@ -409,9 +480,35 @@ const GroupChat: React.FC = () => {
     }
   }, [error, clearError]);
 
+  // Clean up audio resources when component unmounts
+  useEffect(() => {
+    return () => {
+      // Stop recording if active
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.stop();
+      }
+      
+      // Clear recording timer
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+      }
+      
+      // Stop all media stream tracks
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+      
+      // Revoke audio URL if exists
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl);
+      }
+    };
+  }, [audioUrl]);
+
   // Remove audio recording
   const handleRemoveAudio = useCallback(() => {
     setAudioFileToUpload(null);
+    setRecordingError(null);
     if (audioUrl) {
       URL.revokeObjectURL(audioUrl);
       setAudioUrl(null);
@@ -422,6 +519,8 @@ const GroupChat: React.FC = () => {
   const handleRemoveFile = useCallback(() => {
     setSelectedFile(null);
     setFilePreview(null);
+    // Clear the upload error when removing the file
+    setUploadError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -431,6 +530,7 @@ const GroupChat: React.FC = () => {
   // Handle file selection
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     handleRemoveAudio();
+    setUploadError(null); // Clear error on new selection
 
     const file = e.target.files?.[0];
     if (file) {
@@ -452,6 +552,7 @@ const GroupChat: React.FC = () => {
   const uploadFile = useCallback(async (fileToUpload: File): Promise<FileUploadResponse | null> => {
     setIsUploading(true);
     setUploadProgress(0);
+    setUploadError(null); // Clear previous errors
 
     try {
       const progressInterval = setInterval(() => {
@@ -470,8 +571,10 @@ const GroupChat: React.FC = () => {
       setUploadProgress(100);
 
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading file:', error);
+      // Set a user-friendly error message
+      setUploadError(error.response?.data?.message || error.message || 'Failed to upload file. Please try again.');
       return null;
     } finally {
       setIsUploading(false);
@@ -483,26 +586,84 @@ const GroupChat: React.FC = () => {
     if (isUploading) return;
 
     handleRemoveFile();
+    setRecordingError(null);
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
+      // Check if MediaRecorder is supported
+      if (!window.MediaRecorder) {
+        throw new Error('MediaRecorder API is not supported in your browser');
+      }
+
+      // Request microphone access
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        } 
+      });
+      
+      streamRef.current = stream;
+      
+      // Determine supported MIME type
+      let mimeType = 'audio/webm';
+      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+        mimeType = 'audio/webm;codecs=opus';
+      } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+        mimeType = 'audio/mp4';
+      } else if (MediaRecorder.isTypeSupported('audio/ogg')) {
+        mimeType = 'audio/ogg';
+      }
+      
+      const recorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = recorder;
       audioChunksRef.current = [];
 
       recorder.ondataavailable = (event) => {
-        audioChunksRef.current.push(event.data);
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
       };
 
       recorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: recorder.mimeType });
-        const audioFile = new File([audioBlob], `audio-${Date.now()}.webm`, { type: recorder.mimeType });
-        setAudioFileToUpload(audioFile);
+        try {
+          const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
 
-        const url = URL.createObjectURL(audioBlob);
-        setAudioUrl(url);
+          // Create a File object from the Blob for upload
+          const audioFile = new File([audioBlob], `audio-${Date.now()}.webm`, { type: recorder.mimeType });
 
-        stream.getTracks().forEach(track => track.stop());
+          
+          
+          // Log the created file for debugging
+          console.log('Audio file created:', audioFile);
+
+          setAudioFileToUpload(audioFile);
+
+          // Create a temporary URL for the preview player
+          const url = URL.createObjectURL(audioBlob);
+          setAudioUrl(url);
+          
+          // Stop all stream tracks
+          if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+          }
+        } catch (error) {
+          console.error('Error processing audio recording:', error);
+          setRecordingError('Failed to process audio recording');
+        }
+      };
+
+      recorder.onerror = (event) => {
+        console.error('MediaRecorder error:', event);
+        setRecordingError('Recording failed');
+        setIsRecording(false);
+        
+        // Stop all stream tracks
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => track.stop());
+          streamRef.current = null;
+        }
       };
 
       recorder.start();
@@ -513,8 +674,9 @@ const GroupChat: React.FC = () => {
         setRecordingTime(prev => prev + 1);
       }, 1000);
 
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to start audio recording:', err);
+      setRecordingError(err.message || 'Failed to access microphone');
       setIsRecording(false);
     }
   }, [isUploading, handleRemoveFile]);
@@ -554,7 +716,8 @@ const GroupChat: React.FC = () => {
       fileResponse = await uploadFile(fileToUpload);
 
       if (!fileResponse || !fileResponse.url) {
-        console.error('Failed to upload file');
+        // The error is now handled and displayed by the uploadFile function itself.
+        // We can just return here.
         return;
       }
 
@@ -576,12 +739,12 @@ const GroupChat: React.FC = () => {
     if (!finalContentType) return;
 
     // Send message via API
-    await sendMessageToGroup(groupId, finalContentType, messageType, replyTo?._id);
+    await sendMessageToGroup(groupId, finalContentType, messageType, replyTo?._id, fileName, fileType);
 
     setMessage('');
     setReplyTo(null);
     handleRemoveFile();
-    
+
     // Ensure we scroll to bottom after sending a message
     setShouldAutoScroll(true);
   }, [message, user, selectedFile, audioFileToUpload, uploadFile, handleRemoveFile, groupId, sendMessageToGroup, replyTo]);
@@ -613,12 +776,12 @@ const GroupChat: React.FC = () => {
   // Handle leave group
   const handleLeaveGroup = useCallback(async () => {
     await leaveGroup(groupId);
-  }, [groupId, leaveGroup]);
+  }, [groupId, user, leaveGroup]);
 
   // Handle join group
   const handleJoinGroup = useCallback(async () => {
     if (user?._id) {
-      await joinGroup(groupId, user?._id);
+      await joinGroup(groupId, user._id);
     }
   }, [groupId, user, joinGroup]);
 
@@ -737,12 +900,12 @@ const GroupChat: React.FC = () => {
       </div>
 
       {/* Messages Container */}
-      <div 
+      <div
         ref={messagesContainerRef}
         className="flex-1 overflow-y-auto p-4 space-y-2 bg-gradient-to-b from-base-200 to-base-300"
         onScroll={handleScroll}
       >
-        {(isMember || isAdmin) && messages &&  messages.length > 0 ? (
+        {(isMember || isAdmin) && messages && messages.length > 0 ? (
           messages.map((msg, index) => (
             <MessageComponent
               key={`${msg._id}-${index}`} // Using a combination of message ID and index to ensure uniqueness
@@ -840,6 +1003,13 @@ const GroupChat: React.FC = () => {
               </div>
             )}
 
+            {/* Display Upload Error */}
+            {uploadError && (
+              <div className="flex-1 text-center">
+                <p className="text-error text-sm">{uploadError}</p>
+              </div>
+            )}
+
             <button
               type="button"
               className="btn btn-circle btn-ghost btn-sm"
@@ -847,6 +1017,23 @@ const GroupChat: React.FC = () => {
               disabled={isUploading}
             >
               <X className="w-4 h-4 text-error" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Recording Error Display */}
+      {recordingError && (
+        <div className="p-2 bg-base-200 border-t border-base-300">
+          <div className="flex items-center justify-between p-2 bg-error/10 rounded-lg">
+            <div className="flex items-center gap-2">
+              <p className="text-error text-sm">{recordingError}</p>
+            </div>
+            <button
+              className="btn btn-ghost btn-xs btn-circle"
+              onClick={() => setRecordingError(null)}
+            >
+              <X className="w-3 h-3" />
             </button>
           </div>
         </div>

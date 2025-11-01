@@ -20,9 +20,7 @@ export class GroupController {
   joinToGroup(
     @Body('groupId') groupId: string,
     @CurrentUser() user: any,
-  ) {
-    console.log('this is hi!!!!!!');
-    
+  ) {    
     return this.groupService.joinGroup({ userId: user.userId, groupId });
   }
 
@@ -46,7 +44,7 @@ export class GroupController {
   findOne(
     @Param('id') id: string,
     @CurrentUser() user: any,
-  ) {
+  ) {    
     return this.groupService.getOneForShowing(id,user.userId);
   }
 

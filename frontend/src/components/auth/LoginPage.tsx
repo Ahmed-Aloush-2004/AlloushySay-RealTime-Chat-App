@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../../stores';
 import AuthLayout from './AuthLayout';
 import GoogleAuthButton from './GoogleAuthButton';
+import { useAuthStore } from '../../stores/authStore';
 
 
 interface FormData {
@@ -40,6 +40,7 @@ const LoginPage: React.FC = () => {
         email: formData.email,
         password: formData.password
       });
+      
       navigate('/dashboard');
     } catch (error: any) {
       setError(error.response?.data?.message || error.message || 'An error occurred');

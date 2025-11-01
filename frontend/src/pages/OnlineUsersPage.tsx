@@ -1,5 +1,5 @@
 // src/components/OnlineUsersPage.tsx
-import React, {  useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 
@@ -12,7 +12,7 @@ interface User {
 
 const OnlineUsersPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user,onlineUsers, fetchOnlineUser } = useAuthStore();
+  const { user, onlineUsers, fetchOnlineUser } = useAuthStore();
 
   useEffect(() => {
     // Fetch online users

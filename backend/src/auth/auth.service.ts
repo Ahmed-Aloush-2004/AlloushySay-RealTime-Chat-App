@@ -50,8 +50,12 @@ export class AuthService {
 
   async signup(signupDto: SignupDto) {
     // Check if username or email already exists
-    const existingUserByEmail = await this.userService.findByEmail(signupDto.email);
-    const existingUserByUsername = await this.userService.findByUsername(signupDto.username);
+    const existingUserByEmail = await this.userService.findByEmail(
+      signupDto.email,
+    );
+    const existingUserByUsername = await this.userService.findByUsername(
+      signupDto.username,
+    );
 
     if (existingUserByEmail) {
       throw new BadRequestException('Email is already registered');
@@ -60,48 +64,30 @@ export class AuthService {
     if (existingUserByUsername) {
       throw new BadRequestException('Username is already taken');
     }
-    const user = await this.userService.create(signupDto);
+    await this.userService.create(signupDto);
 
-    const payload = { username: user.username, sub: user._id.toString() };
-    const accessToken = await this.generateAccessToken(payload);
-    const refreshToken = await this.generateRefreshToken(payload);
-    return {
-      accessToken,
-      refreshToken,
-      user: {
-        _id: user._id.toString(),
-        username: user.username,
-        email: user.email,
-        avatar: user?.avatar,
-        isOnline: user.isOnline
-      },
-    };
-    return this.login({ email: signupDto.username, password: signupDto.password });
+    return this.login({ email: signupDto.email, password: signupDto.password });
   }
 
 
-    async signupOrLoginGoogle(signupOrLoginDto: SignupOrLoginDto) {
-    // Check if username or email already exists
+  async signupOrLoginGoogle(signupOrLoginDto: SignupOrLoginDto): Promise<AuthResponse> {    // Check if username or email already exists
     let user;
-     user = await this.userService.findByEmail(signupOrLoginDto.email);
+    user = await this.userService.findByEmail(signupOrLoginDto.email);
 
-    if(!user){
-     user = await this.userService.create({username:signupOrLoginDto.username,email:signupOrLoginDto.email});
+    if (!user) {
+      user = await this.userService.create({
+        ...signupOrLoginDto,
+        password: null, // Explicitly set password to null for Google OAuth users
+      });
     }
-    
+
     const payload = { username: user.username, sub: user._id.toString() };
     const accessToken = await this.generateAccessToken(payload);
     const refreshToken = await this.generateRefreshToken(payload);
     return {
+      user,
       accessToken,
       refreshToken,
-      user: {
-        _id: user._id.toString(),
-        username: user.username,
-        email: user.email,
-        avatar: user?.avatar,
-        isOnline: user.isOnline
-      },
     };
   }
 

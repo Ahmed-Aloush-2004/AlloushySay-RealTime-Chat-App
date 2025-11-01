@@ -54,7 +54,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         this.users.set(userId, client.id);
 
         // Update user online status
-        await this.userService.updateOnlineStatus(userId, true);
+      let updatedUser =   await this.userService.updateOnlineStatus(userId, true);
 
         // OPTIONAL: Broadcast online status change to all other users
         // this.server.emit('userOnline', { userId, isOnline: true });

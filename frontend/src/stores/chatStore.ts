@@ -1,12 +1,10 @@
 import { create } from 'zustand';
-import { userAPI } from '../services/api';
-import { chatAPI } from '../services/api';
-import { initializeSocket } from '../services/socket';
-import type { Socket } from 'socket.io-client';
 import type { Message } from '../common/interfaces/message';
 import type { User } from '../common/interfaces/user';
 import type { Chat } from '../common/interfaces/chat';
 import { showNotification } from '../services/notification';
+import { useSocketStore } from './socketStore';
+import { useApiStore } from './apiStore';
 
 interface ChatState {
   messages: Message[];
@@ -15,7 +13,6 @@ interface ChatState {
   chats: Chat[];
   currentChat: string | null;
   onlineUsers: User[]; // Array of user objects, not just IDs
-  socket: Socket | null;
 }
 
 type ChatActions = {
@@ -27,8 +24,6 @@ type ChatActions = {
   addMessage: (message: Message) => void;
   addUserOnline: (user: User) => void;
   removeUserOffline: (userId: string) => void;
-  initializeSocket: (userId: string) => void;
-  disconnectSocket: () => void;
 }
 
 export const useChatStore = create<ChatState & ChatActions>()((set, get) => ({
@@ -39,29 +34,14 @@ export const useChatStore = create<ChatState & ChatActions>()((set, get) => ({
   chats: [],
   currentChat: null,
   onlineUsers: [],
-  socket: null,
 
-  initializeSocket: (userId: string) => {
-    // Prevent multiple connections
-    if (get().socket) {
-      return;
-    }
-    const newSocket = initializeSocket(userId);
-    if (newSocket) {
-      set({ socket: newSocket });
-    }
-  },
 
-  disconnectSocket: () => {
-    get().socket?.disconnect();
-    set({ socket: null, onlineUsers: [] });
-  },
 
 
   getMyChats: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await chatAPI.getMyChats();
+      const response = await useApiStore.getState().chatAPI.getMyChats();
       set({
         chats: response.data,
         isLoading: false,
@@ -81,7 +61,7 @@ export const useChatStore = create<ChatState & ChatActions>()((set, get) => ({
 
     try {
       // 2. Call the API function
-      const response = await chatAPI.getChatMessages(senderId, receiverId);
+      const response = await useApiStore.getState().chatAPI.getChatMessages(senderId, receiverId);
       console.log('this is the getChatMessagesForUsers : ', response);
 
 
@@ -103,14 +83,15 @@ export const useChatStore = create<ChatState & ChatActions>()((set, get) => ({
 
 
   sendMessage: (message: Message) => {
-    const { socket } = get();
+    const  socket  = useSocketStore.getState().socket;
     if (socket) {
       socket.emit('sendMessage', message);
     }
   },
 
   reciveMessage: (message: Message) => {
-    const { socket } = get();
+
+    const  socket  = useSocketStore.getState().socket;
 
     if (socket) {
       socket.on('reciveMessage', (message: Message) => {

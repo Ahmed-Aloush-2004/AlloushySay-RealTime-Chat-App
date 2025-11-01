@@ -36,7 +36,7 @@ export class UserService {
       .exec();
   }
 
-  async findOne(id: string): Promise<UserDocument> {
+  async findOne(id: string): Promise<UserDocument> {    
     return this.userModel.findOne({ _id: new Types.ObjectId(id) }).exec();
   }
 
@@ -60,6 +60,6 @@ export class UserService {
   }
 
   async updateOnlineStatus(id: string, isOnline: boolean): Promise<UserDocument> {
-    return this.userModel.findByIdAndUpdate(id, { isOnline }).exec();
+    return this.userModel.findByIdAndUpdate(id, { isOnline }, { new: true }).exec();
   }
 }

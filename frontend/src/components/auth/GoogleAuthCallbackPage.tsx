@@ -1,24 +1,25 @@
 // GoogleAuthCallbackPage.tsx
 import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuthStore } from '../../stores';
+import { useAuthStore } from '../../stores/authStore';
 
 const GoogleAuthCallbackPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const signupOrLoginByGoogle = useAuthStore(state => state.signupOrLoginByGoogle);
+  const { signupOrLoginByGoogle } = useAuthStore();
 
   useEffect(() => {
     // 1. Get query parameters from the URL
     const params = new URLSearchParams(location.search);
     const accessToken = params.get('accessToken');
     const refreshToken = params.get('refreshToken');
-    const userJson = params.get('user');
+    const userJson = params.get('user');    
 
     if (accessToken && refreshToken && userJson) {
       try {
         // 2. Decode and parse the user object
         const user = JSON.parse(decodeURIComponent(userJson));
+        // console.log('this is the user from the url : ', user);
 
         // 3. Update the global auth store
         signupOrLoginByGoogle(user, refreshToken, accessToken)

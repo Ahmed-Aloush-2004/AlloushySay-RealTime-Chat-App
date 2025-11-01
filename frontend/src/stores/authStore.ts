@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { authAPI, userAPI } from '../services/api';
-import { useChatStore } from './chatStore';
 import type { User } from '../common/interfaces/user';
+import { useSocketStore } from './socketStore';
+import { useApiStore } from './apiStore';
 interface LoginCredentials {
     email: string;
     password: string;
@@ -39,10 +39,11 @@ export const useAuthStore = create<AuthState>()(
 
             signupOrLoginByGoogle: async (user: User, refreshToken: string, accessToken: string) => {
                 try {
-                    set({ user: user,isAuthenticated:true })
-                    localStorage.setItem('accessToken',accessToken);
-                    localStorage.setItem('refreshToken',refreshToken);
-                    useChatStore.getState().initializeSocket(user._id);
+                    set({ user: user, isAuthenticated: true })
+                    localStorage.setItem('accessToken', accessToken);
+                    localStorage.setItem('refreshToken', refreshToken);
+                    useApiStore.getState().setAuthTokens(accessToken)
+                    useSocketStore.getState().initializeSocket(user._id);
                 } catch (error) {
                     throw error;
                 }
@@ -51,11 +52,13 @@ export const useAuthStore = create<AuthState>()(
 
             login: async (credentials: LoginCredentials) => {
                 try {
-                    const response = await authAPI.login(credentials);
+                    const response = await useApiStore.getState().authAPI.login(credentials);
                     localStorage.setItem('accessToken', response.data.accessToken);
                     localStorage.setItem('refreshToken', response.data.refreshToken);
                     set({ user: response.data.user, isAuthenticated: true, loading: false });
-                    useChatStore.getState().initializeSocket(response.data.user._id);
+                    console.log('this is the reponse .data   : ', response?.data);
+                    useApiStore.getState().setAuthTokens(response.data.accessToken)
+                    useSocketStore.getState().initializeSocket(response.data.user._id);
                 } catch (error) {
                     throw error;
                 }
@@ -63,11 +66,12 @@ export const useAuthStore = create<AuthState>()(
 
             signup: async (userData) => {
                 try {
-                    const response = await authAPI.signup(userData);
+                    const response = await useApiStore.getState().authAPI.signup(userData);
                     localStorage.setItem('accessToken', response.data.accessToken);
                     localStorage.setItem('refreshToken', response.data.refreshToken);
                     set({ user: response.data.user, isAuthenticated: true, loading: false });
-                    useChatStore.getState().initializeSocket(response.data.user._id);
+                    useApiStore.getState().setAuthTokens(response.data.accessToken)
+                    useSocketStore.getState().initializeSocket(response.data.user._id);
                 } catch (error) {
                     throw error;
                 }
@@ -76,13 +80,14 @@ export const useAuthStore = create<AuthState>()(
             logout: () => {
                 localStorage.removeItem('accessToken');
                 localStorage.removeItem('refreshToken');
-                useChatStore.getState().disconnectSocket();
+                useSocketStore.getState().disconnectSocket();
+                useApiStore.getState().setAuthTokens('')
                 set({ user: null, isAuthenticated: false, onlineUsers: [], loading: false });
             },
 
             fetchOnlineUser: async () => {
                 try {
-                    const response = await userAPI.getAllOnline();
+                    const response = await useApiStore.getState().userAPI.getAllOnline();
                     set({ onlineUsers: response.data });
                 } catch (error) {
                     console.error('Error fetching online users:', error);
@@ -95,7 +100,7 @@ export const useAuthStore = create<AuthState>()(
                     const refreshToken = localStorage.getItem('refreshToken') || '';
                     console.log('this is the refreshToken : ', refreshToken);
 
-                    const response = await authAPI.getAccessToken(refreshToken);
+                    const response = await useApiStore.getState().authAPI.getAccessToken(refreshToken);
                     console.log('this is the response : ', response);
                     localStorage.setItem('accessToken', response.data.accessToken);
                     set({ loading: false });
@@ -118,24 +123,24 @@ export const useAuthStore = create<AuthState>()(
 
                 if (token) {
                     try {
-                        const response = await authAPI.getProfile();
-                        const res = await authAPI.getAccessToken(refreshToken || '');
+                        const response = await useApiStore.getState().authAPI.getProfile();
+                        const res = await useApiStore.getState().authAPI.getAccessToken(refreshToken || '');
                         if (!res.data.accessToken) {
                             localStorage.removeItem('accessToken');
                             localStorage.removeItem('refreshToken');
                         }
                         localStorage.setItem('accessToken', res.data.accessToken);
                         set({ user: response.data, isAuthenticated: true, loading: false });
-                        useChatStore.getState().initializeSocket(response.data._id);
+                        useSocketStore.getState().initializeSocket(response.data._id);
                     } catch (error) {
                         // Try to refresh the token if it's expired
                         if (refreshToken) {
                             try {
-                                const refreshResponse = await authAPI.getAccessToken(refreshToken);
+                                const refreshResponse = await useApiStore.getState().authAPI.getAccessToken(refreshToken);
                                 localStorage.setItem('accessToken', refreshResponse.data.accessToken);
-                                const profileResponse = await authAPI.getProfile();
+                                const profileResponse = await useApiStore.getState().authAPI.getProfile();
                                 set({ user: profileResponse.data, isAuthenticated: true, loading: false });
-                                useChatStore.getState().initializeSocket(profileResponse.data._id);
+                                useSocketStore.getState().initializeSocket(profileResponse.data._id);
                             } catch (refreshError) {
                                 localStorage.removeItem('accessToken');
                                 localStorage.removeItem('refreshToken');

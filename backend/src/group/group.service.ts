@@ -359,7 +359,10 @@ export class GroupService {
   }
 
   async leaveGroup(leaveGroupPayload: GroupMembershipDto): Promise<GroupDocument> {
+    
     const user = await this.userService.findOne(leaveGroupPayload.userId);
+    console.log('this is the leaveGroupPayload : ',leaveGroupPayload);
+    
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -445,7 +448,6 @@ export class GroupService {
 
     const isMember = group.members.some(m => m._id.toString() === userId.toString());
 
-    console.log('this is a member : ', userId, isMember, group.members);
     if (isMember) {
 
       await group.populate({

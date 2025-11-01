@@ -2,15 +2,15 @@ import { useLocation } from "react-router-dom";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { Socket } from "socket.io-client";
 import { Check, Send, Paperclip, Smile, MoreVertical, X, Upload, Mic, StopCircle, Download, Play, Pause, Volume2 } from "lucide-react";
-import { useAuthStore } from "../../stores";
 import { useMessageStore } from "../../stores/messageStore";
 import type { User } from "../../common/interfaces/user";
 import type { Message } from "../../common/interfaces/message";
-import { initializeSocket } from "../../services/socket";
 import TypingIndicator from "../TypeIndicator";
-import { fileAPI } from "../../services/api";
 import type { FileUploadResponse } from "../../common/interfaces/fileUploadResponse";
 import { showNotification } from "../../services/notification";
+import { useAuthStore } from "../../stores/authStore";
+import { useSocketStore } from "../../stores/socketStore";
+import { useApiStore } from "../../stores/apiStore";
 
 // Using a more reliable path for the notification sound
 const NOTIFICATION_SOUND_URL = '/sounds/notification.mp3';
@@ -140,6 +140,11 @@ const ChatPage: React.FC = () => {
     const location = useLocation();
     const { user } = useAuthStore();
     const { messages, isLoading, getChatMessagesForUsers } = useMessageStore();
+    const { initializeSocket, socket } = useSocketStore();
+    const { fileAPI } = useApiStore();
+
+
+
     const selectedUser = location.state?.user as User || useAuthStore().onlineUsers[0];
     const [message, setMessage] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -198,7 +203,7 @@ const ChatPage: React.FC = () => {
         )) {
             useMessageStore.getState().addMessage(message);
 
-            showNotification(message.sender.username,message.content,new Date().toDateString())
+            showNotification(message.sender.username, message.content, new Date().toDateString())
 
             if (isIncoming && notificationSoundRef.current) {
                 // Use the preloaded sound instead of creating a new one
@@ -246,16 +251,19 @@ const ChatPage: React.FC = () => {
     }, [user, selectedUser, getChatMessagesForUsers]);
 
     useEffect(() => {
-        if (user?._id && selectedUser?._id) {
-            const newSocket = initializeSocket(user._id);
-            socketRef.current = newSocket;
+        if (user?._id && selectedUser?._id ) {
 
-            newSocket!.on('receiveMessage', handleReceiveMessage);
-            newSocket!.on('typingUpdate', handleTypingUpdate);
+            if(!socket){
+                initializeSocket(user._id);
+            }            
+            socketRef.current = socket;
+
+            socket?.on('receiveMessage', handleReceiveMessage);
+            socket?.on('typingUpdate', handleTypingUpdate);
 
             return () => {
-                newSocket!.off('receiveMessage', handleReceiveMessage);
-                newSocket!.off('typingUpdate', handleTypingUpdate);
+                socket?.off('receiveMessage', handleReceiveMessage);
+                socket?.off('typingUpdate', handleTypingUpdate);
                 if (typingTimeoutRef.current) {
                     clearTimeout(typingTimeoutRef.current);
                 }

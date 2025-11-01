@@ -1,7 +1,7 @@
 // src/store/messageStore.ts (Example file name)
 import { create } from "zustand";
-import { chatAPI } from "../services/api"; // Adjust the import path as needed
 import type { Message } from "../common/interfaces/message";
+import { useApiStore } from "./apiStore";
 
 // --- Store Interfaces (Refined based on your provided data) ---
 
@@ -43,7 +43,7 @@ export const useMessageStore = create<MessageState>((set) => ({
 
     try {
       // 2. Call the API function
-      const response = await chatAPI.getChatMessages(senderId, reciverId);
+      const response = await useApiStore.getState().chatAPI.getChatMessages(senderId, reciverId);
       // console.log('this is the getChatMessagesForUsers : ', response);
 
 

@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthStore, useChatStore } from '../../stores';
 import type { Chat } from '../../common/interfaces/chat';
 import type { User } from '../../common/interfaces/user';
+import { useAuthStore } from '../../stores/authStore';
+import { useChatStore } from '../../stores/chatStore';
 
 const ChatList: React.FC = () => {
   const { user,getAccessToken } = useAuthStore();

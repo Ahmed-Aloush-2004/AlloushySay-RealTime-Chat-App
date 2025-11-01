@@ -44,7 +44,7 @@ export class GroupGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     this.userSockets.set(userId, client.id);
-    this.logger.error(`User ${userId} connected with socket ${client.id}`);
+    this.logger.log(`User ${userId} connected with socket ${client.id}`);
 
     // Join all groups the user is a member of
     const groups = await this.groupService.findAll();
@@ -97,6 +97,7 @@ export class GroupGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     try {
       const group = await this.groupService.joinGroup(payload);
+      console.log('this is something!!!!!!!!');
       
       // Join socket room
       client.join(groupId);
@@ -116,6 +117,8 @@ export class GroupGateway implements OnGatewayConnection, OnGatewayDisconnect {
       });
 
       return { success: true, group };
+
+      
     } catch (error) {
       this.logger.error(`Error joining group: ${error.message}`);
       client.emit('error', { message: error.message });
@@ -126,9 +129,11 @@ export class GroupGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('leaveGroup')
   async handleLeaveGroup(client: Socket, payload: { groupId: string, userId: string }) {
     const { groupId, userId } = payload;
-
-    try {
+ 
+    try { 
+      console.log('this is something!!!!!!!! payload : ', payload );
       const group = await this.groupService.leaveGroup(payload);
+      console.log('this is something!!!!!!!!');
       
       // Leave socket room
       client.leave(groupId);

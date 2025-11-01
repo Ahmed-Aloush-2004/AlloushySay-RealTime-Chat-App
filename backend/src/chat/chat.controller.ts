@@ -1,9 +1,10 @@
 // src/chats/chat.controller.ts
-import { Controller, Get, Post, Body, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, UseGuards, Req } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { CreateChatDto } from './dto/create-chat.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import { Request } from 'express';
 
 @Controller('chats')
 export class ChatController {
@@ -28,8 +29,10 @@ export class ChatController {
   @Get('myChats')
   @UseGuards(JwtAuthGuard)
   getMyChats(
-    @CurrentUser() user: { userId: string, username: string }
+    @CurrentUser() user: { userId: string, username: string },
+    @Req() req:Request,
   ) {
+    // console.log('this is the authorization of the request',req.headers.authorization);
     return this.chatService.getMyChats(user.userId);
   }
 
