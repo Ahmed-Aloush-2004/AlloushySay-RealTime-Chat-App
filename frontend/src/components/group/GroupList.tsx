@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGroupStore } from '../../stores/groupStore';
 import { useAuthStore } from '../../stores/authStore';
-import { Plus, Users, Settings } from 'lucide-react';
+import { Plus, Users } from 'lucide-react';
 
 const GroupList: React.FC = () => {
   const { user } = useAuthStore();
@@ -13,7 +13,8 @@ const GroupList: React.FC = () => {
   const [filteredGroups, setFilteredGroups] = useState(groups);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [groupName, setGroupName] = useState('');
-  const [groupDescription, setGroupDescription] = useState('');
+  const [groupDescription, setGroupDescription] = useState('');  
+
 
   useEffect(() => {
     const getAllGroups = async () => {
@@ -31,9 +32,7 @@ const GroupList: React.FC = () => {
     }
   }, [groups, searchTerm]);
 
-  const handleGroupClick = (groupId: string) => {
-    console.log('this is the groupId : ',groupId);
-    
+  const handleGroupClick = (groupId: string) => {    
     navigate(`/dashboard/group/${groupId}`);
   };
 
@@ -61,9 +60,9 @@ const GroupList: React.FC = () => {
   };
 
   const formatLastMessage = (group: any) => {
-    if (!group.lastMessage) return 'No messages yet';
+    if (!group.messages || !group.messages.length) return 'No messages yet';
     
-    const message = group.lastMessage;
+    const message = group.messages[group.messages.length - 1];
     const sender = message.sender as any;
     
     return `${sender?.username || 'Someone'}: ${message.content}`;
@@ -127,14 +126,14 @@ const GroupList: React.FC = () => {
                     <div className="flex justify-between items-center mb-1">
                       <h3 className="font-semibold text-lg truncate">{group.name}</h3>
                       <span className="text-xs text-base-content/50">
-                        {group.messages[group.messages.length - 1] && formatTime(group.messages[group.messages.length - 1].createdAt)}
+                        {group.messages && group.messages.length > 0 && formatTime(group.messages[group.messages.length - 1].createdAt)}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <p className="text-sm text-base-content/70 truncate">
                         {formatLastMessage(group)}
                       </p>
-                      {group.unreadCount > 0 && (
+                      {group.unreadCount && group.unreadCount > 0 && (
                         <div className="badge badge-primary badge-sm ml-2">
                           {group.unreadCount}
                         </div>

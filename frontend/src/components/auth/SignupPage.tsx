@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import AuthLayout from './AuthLayout';
 import GoogleAuthButton from './GoogleAuthButton';
+import toast from 'react-hot-toast';
 
 interface FormData {
   username: string;
@@ -19,7 +20,6 @@ const SignupPage: React.FC = () => {
     password: '',
     confirmPassword: '',
   });
-  const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [googleLoading, setGoogleLoading] = useState<boolean>(false);
 
@@ -36,10 +36,9 @@ const SignupPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
-    setError('');
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+      toast.error('Passwords do not match');
       return;
     }
 
@@ -53,27 +52,20 @@ const SignupPage: React.FC = () => {
       });
       navigate('/dashboard');
     } catch (error: any) {
-      setError(error.response?.data?.message || error.message || 'An error occurred');
+      toast.error(error.response?.data?.message || error.message || 'An error occurred');
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleSignup = async () => {
-    setError('');
     setGoogleLoading(true);
     
     try {
-      // This is a placeholder for Google OAuth implementation
-      // Similar to the login implementation
-      
-      // For demonstration purposes, we'll just simulate a delay
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // For now, we'll just show an error message
-      setError('Google authentication is not fully implemented yet. Please use email/password.');
+      toast.error('Google authentication is not fully implemented yet. Please use email/password.');
     } catch (error: any) {
-      setError(error.message || 'An error occurred during Google authentication');
+      toast.error(error.message || 'An error occurred during Google authentication');
     } finally {
       setGoogleLoading(false);
     }
@@ -87,17 +79,6 @@ const SignupPage: React.FC = () => {
       footerLinkText="Sign in"
       footerLinkTo="/login"
     >
-      {error && (
-        <div className="alert alert-error shadow-lg mb-4">
-          <div>
-            <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current flex-shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>{error}</span>
-          </div>
-        </div>
-      )}
-
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="form-control">
           <label className="label">

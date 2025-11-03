@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import AuthLayout from './AuthLayout';
 import GoogleAuthButton from './GoogleAuthButton';
 import { useAuthStore } from '../../stores/authStore';
-
+import toast from 'react-hot-toast';
 
 interface FormData {
   email: string;
@@ -15,11 +15,10 @@ const LoginPage: React.FC = () => {
     email: '',
     password: '',
   });
-  const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [googleLoading, setGoogleLoading] = useState<boolean>(false);
 
-  const { login,signupOrLoginByGoogle } = useAuthStore();
+  const { login } = useAuthStore();
   const navigate = useNavigate();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
@@ -32,7 +31,6 @@ const LoginPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
-    setError('');
     setLoading(true);
 
     try {
@@ -43,7 +41,7 @@ const LoginPage: React.FC = () => {
       
       navigate('/dashboard');
     } catch (error: any) {
-      setError(error.response?.data?.message || error.message || 'An error occurred');
+      toast.error(error.response?.data?.message || error.message || 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -53,17 +51,8 @@ const LoginPage: React.FC = () => {
 
 
 const handleGoogleLogin = async () => {
-    setError('');
-    setGoogleLoading(true); // Setting loading here is optional since it's a hard redirect
-
-    // 🚀 Simpler logic: Just redirect the browser to the backend endpoint.
-    // The backend will handle the rest of the flow (Google login -> redirect back to frontend).
+    setGoogleLoading(true); 
     window.location.href = 'http://localhost:3000/auth/google';
-
-    // IMPORTANT: Remove the placeholder error and the redundant signupOrLoginByGoogle call
-    // The state update happens on the /auth/google/success page (Step 3).
-
-    // setGoogleLoading(false); // This line will never execute because of the hard redirect
   };
 
   
@@ -75,17 +64,6 @@ const handleGoogleLogin = async () => {
       footerLinkText="Sign up"
       footerLinkTo="/signup"
     >
-      {error && (
-        <div className="alert alert-error shadow-lg mb-4">
-          <div>
-            <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current flex-shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>{error}</span>
-          </div>
-        </div>
-      )}
-
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="form-control">
           <label className="label">

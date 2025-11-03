@@ -18,7 +18,7 @@ interface AuthResponse { user: User; accessToken: string; refreshToken: string; 
 
 
 // --- API URL Constant ---
-const API_URL = 'http://localhost:3000';
+const API_URL = import.meta.env.MODE === "development" ? "http://localhost:5000/api" : "/api";
 
 
 // --- 1. Axios Instance Factory Function ---
@@ -26,7 +26,7 @@ const API_URL = 'http://localhost:3000';
 const createAxiosInstances = (accessToken: string | null) => {
   // Base API Instance (for JSON communication)
   const api: AxiosInstance = axios.create({
-    baseURL: API_URL,
+    baseURL: API_URL, 
     headers: {
       'Authorization': accessToken ? `Bearer ${accessToken}` : '',
       'Content-Type': 'application/json',
@@ -96,7 +96,7 @@ interface ApiStoreState {
 
 
 // --- 3. Create the Zustand Store ---
-export const useApiStore = create<ApiStoreState>((set, get) => {
+export const useApiStore = create<ApiStoreState>((set) => {
   // Initialize with tokens from localStorage (or null if not found)
   const initialToken = localStorage.getItem('accessToken');
   

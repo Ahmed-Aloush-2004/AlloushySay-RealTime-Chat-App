@@ -7,7 +7,7 @@ import { useSocketStore } from '../stores/socketStore.ts';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { user, isAuthenticated, loading, logout } = useAuthStore();
+  const { user, isAuthenticated, loading } = useAuthStore();
   const { socket, initializeSocket } = useSocketStore();
   console.log('this is the user : ', user);
 

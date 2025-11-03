@@ -4,16 +4,25 @@ import { useNavigate, Outlet, Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { Group, Users2 } from 'lucide-react';
 import { BiChat } from 'react-icons/bi';
+import { useSocketStore } from '../stores/socketStore';
 
 const Layout: React.FC = () => {
 
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
+  const { initializeSocket, socket } = useSocketStore()
 
   const handleLogout = () => {
     logout();
     navigate('/');
   };
+
+  useEffect(() => {
+    if (!socket && user) {
+      initializeSocket(user._id)
+    }
+  }, [socket, initializeSocket,user])
+
 
   return (
     <div className="flex h-screen bg-base-100">

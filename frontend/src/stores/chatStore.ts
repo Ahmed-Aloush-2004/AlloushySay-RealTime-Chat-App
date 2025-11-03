@@ -5,6 +5,7 @@ import type { Chat } from '../common/interfaces/chat';
 import { showNotification } from '../services/notification';
 import { useSocketStore } from './socketStore';
 import { useApiStore } from './apiStore';
+import toast from 'react-hot-toast';
 
 interface ChatState {
   messages: Message[];
@@ -56,28 +57,23 @@ export const useChatStore = create<ChatState & ChatActions>()((set, get) => ({
   },
 
   getChatMessagesForUsers: async (senderId: string, receiverId: string) => {
-    // 1. Set loading state
     set({ isLoading: true, error: null });
 
     try {
-      // 2. Call the API function
       const response = await useApiStore.getState().chatAPI.getChatMessages(senderId, receiverId);
-      console.log('this is the getChatMessagesForUsers : ', response);
-
-
-      // 3. Update the store with the fetched messages
       set({
-        messages: response.data.messages,
+        messages: response.data.messages as Message[],
         isLoading: false,
       });
+      toast.success('Messages loaded successfully!');
     } catch (err) {
-      // 4. Handle errors
       console.error("Failed to fetch chat messages:", err);
       set({
         messages: [],
         isLoading: false,
         error: 'Failed to load messages. Please try again.',
       });
+      toast.error('Failed to load messages.');
     }
   },
 
@@ -89,19 +85,17 @@ export const useChatStore = create<ChatState & ChatActions>()((set, get) => ({
     }
   },
 
-  reciveMessage: (message: Message) => {
+  reciveMessage: () => {
 
     const  socket  = useSocketStore.getState().socket;
 
     if (socket) {
       socket.on('reciveMessage', (message: Message) => {
         set({ messages: [...get().messages, message] })
-        console.log('this is the message : ',message);
-
-        
-
-        showNotification(message.sender?.username, message?.content, new Date().toDateString())
-
+        if (typeof message.sender === 'object' && message.sender) {
+          showNotification(message.sender.username, message?.content, new Date().toDateString())
+        }
+        toast.success('New message received!');
       });
     }
   },

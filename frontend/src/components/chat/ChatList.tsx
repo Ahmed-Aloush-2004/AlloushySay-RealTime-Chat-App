@@ -6,7 +6,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useChatStore } from '../../stores/chatStore';
 
 const ChatList: React.FC = () => {
-  const { user,getAccessToken } = useAuthStore();
+  const { user } = useAuthStore();
   const { chats, getMyChats, isLoading } = useChatStore();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
@@ -16,6 +16,7 @@ const ChatList: React.FC = () => {
     const fetchMyChats = async () => {
       await getMyChats();
     };
+        
     if (user) {      
       fetchMyChats();
     }
@@ -129,9 +130,13 @@ const ChatList: React.FC = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-center mb-1">
                         <h3 className="font-semibold text-lg truncate">{otherUser.username}</h3>
-                        <span className="text-xs text-base-content/50">
-                          {chat.messages[chat.messages.length - 1] && formatTime(chat.messages[chat.messages.length - 1] && chat.messages[chat.messages.length - 1]?.createdAt)}
-                        </span>
+                          {(() => {
+                            const lastMessage = chat.messages[chat.messages.length - 1];
+                            if (lastMessage && typeof lastMessage === 'object') {
+                              return <span className="text-xs text-base-content/50">{formatTime(lastMessage.createdAt)}</span>;
+                            }
+                            return null;
+                          })()}
                       </div>
                       <div className="flex justify-between items-center">
                         <p className="text-sm text-base-content/70 truncate">

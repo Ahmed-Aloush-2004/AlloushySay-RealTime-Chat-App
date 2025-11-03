@@ -6,7 +6,7 @@ import React, { type ReactNode, useEffect, useState } from "react";
 import { useAuthStore } from "./stores/authStore.ts";
 import ChatListPage from "./components/chat/ChatListPage.tsx";
 import LoginPage from "./components/auth/LoginPage.tsx";
-import GroupListPage from "./pages/GroupListPage.tsx";
+import GroupListPage from "./components/group/GroupListPage.tsx";
 import SignupPage from "./components/auth/SignupPage.tsx";
 import { Toaster } from "react-hot-toast";
 import GroupChat from "./components/group/GroupChat.tsx";
@@ -17,7 +17,7 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { isAuthenticated, loading,user } = useAuthStore();
+  const { isAuthenticated, loading } = useAuthStore();
   const accessToken = localStorage.getItem("accessToken");
   const refreshToken = localStorage.getItem("refreshToken");
 
@@ -55,7 +55,7 @@ const AppRoutes: React.FC = () => {
 };
 
 function App() {
-  const checkAuthStatus = useAuthStore((state) => state.checkAuthStatus);
+  const {checkAuthStatus} = useAuthStore();
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {

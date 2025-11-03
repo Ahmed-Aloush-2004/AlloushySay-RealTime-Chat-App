@@ -1,5 +1,5 @@
-import React from 'react'
-import GroupList from '../components/group/GroupList'
+
+import GroupList from './GroupList'
 
 const GroupListPage = () => {
     return (

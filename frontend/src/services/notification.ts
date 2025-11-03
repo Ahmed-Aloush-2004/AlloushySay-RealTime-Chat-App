@@ -1,5 +1,4 @@
-export // Function to show a desktop notification
-const showNotification = (senderName:string, messageContent:string, groupId:string) => {
+export const showNotification = (senderName:string, messageContent:string, groupId:string) => {
   // Check if the browser supports notifications
   if (!('Notification' in window)) {
     console.warn('Browser does not support desktop notification.');

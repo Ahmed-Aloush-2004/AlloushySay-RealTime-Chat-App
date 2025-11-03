@@ -144,6 +144,7 @@ export class GroupGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
 
       this.logger.log(`User ${userId} left group ${groupId}`);
+console.error('something');
 
       // Emit to all clients in the group
       this.server.to(groupId).emit('groupMemberLeft', { 
@@ -166,8 +167,10 @@ export class GroupGateway implements OnGatewayConnection, OnGatewayDisconnect {
     content: string; 
     messageType?: MessageType;
     replyTo?: string;
+    fileName?: string;
+    fileType?: string;
   }) {
-    const { groupId, content, messageType, replyTo } = payload;
+    const { groupId, content, messageType, replyTo, fileName, fileType } = payload;
     const senderId = client.handshake.query.userId as string;
 
     try {
@@ -189,6 +192,8 @@ export class GroupGateway implements OnGatewayConnection, OnGatewayDisconnect {
         reciver: null,
         messageType: messageType || MessageType.TEXT,
         replyTo, 
+        fileName,
+        fileType,
       });
 
       // Add message to group

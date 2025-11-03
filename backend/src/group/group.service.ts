@@ -353,16 +353,16 @@ export class GroupService {
         throw new NotFoundException('Group not found');
       }
       throw new ConflictException('User is already a member of this group');
-    }    
+    }
 
     return group;
   }
 
   async leaveGroup(leaveGroupPayload: GroupMembershipDto): Promise<GroupDocument> {
-    
+
     const user = await this.userService.findOne(leaveGroupPayload.userId);
-    console.log('this is the leaveGroupPayload : ',leaveGroupPayload);
-    
+    console.log('this is the leaveGroupPayload : ', leaveGroupPayload);
+
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -409,6 +409,14 @@ export class GroupService {
       .populate([
         { path: 'admin', select: '-password' },
         { path: 'members', select: '-password' },
+        { path: 'messages',
+          populate: [
+            {
+              path: 'sender',
+              select: '-password',
+            },
+          ]
+        }
       ])
       .exec();
   }

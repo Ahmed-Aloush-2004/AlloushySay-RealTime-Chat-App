@@ -21,7 +21,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         if (Array.isArray(exceptionResponse.message)) {
             message = exceptionResponse.message.join(', ');
         } else {
-            message = exceptionResponse.message as string;
+            message = exceptionResponse.message as string; 
         }
     } else if (typeof exceptionResponse === 'string') {
         // This handles simple string messages (e.g., from new HttpException('Error message', ...))

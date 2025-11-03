@@ -2,6 +2,7 @@
 import { create } from "zustand";
 import type { Message } from "../common/interfaces/message";
 import { useApiStore } from "./apiStore";
+import toast from "react-hot-toast";
 
 // --- Store Interfaces (Refined based on your provided data) ---
 
@@ -49,9 +50,10 @@ export const useMessageStore = create<MessageState>((set) => ({
 
       // 3. Update the store with the fetched messages
       set({
-        messages: response.data.messages || [],
+        messages: response.data.messages as Message[] || [],
         isLoading: false,
       });
+      toast.success("Messages loaded successfully!");
     } catch (err) {
       // 4. Handle errors
       console.error("Failed to fetch chat messages:", err);
@@ -60,6 +62,7 @@ export const useMessageStore = create<MessageState>((set) => ({
         isLoading: false,
         error: 'Failed to load messages. Please try again.',
       });
+      toast.error("Failed to load messages. Please try again.");
     }
   },
 

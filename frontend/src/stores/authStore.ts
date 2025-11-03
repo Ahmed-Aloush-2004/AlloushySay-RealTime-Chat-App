@@ -3,6 +3,8 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import type { User } from '../common/interfaces/user';
 import { useSocketStore } from './socketStore';
 import { useApiStore } from './apiStore';
+import toast from 'react-hot-toast';
+
 interface LoginCredentials {
     email: string;
     password: string;
@@ -30,7 +32,7 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
     persist(
-        (set, get) => ({
+        (set) => ({
             user: null,
             onlineUsers: [],
             loading: true,
@@ -44,7 +46,9 @@ export const useAuthStore = create<AuthState>()(
                     localStorage.setItem('refreshToken', refreshToken);
                     useApiStore.getState().setAuthTokens(accessToken)
                     useSocketStore.getState().initializeSocket(user._id);
+                    toast.success('Login successful!');
                 } catch (error) {
+                    toast.error('An error occurred during login.');
                     throw error;
                 }
             },
@@ -56,10 +60,11 @@ export const useAuthStore = create<AuthState>()(
                     localStorage.setItem('accessToken', response.data.accessToken);
                     localStorage.setItem('refreshToken', response.data.refreshToken);
                     set({ user: response.data.user, isAuthenticated: true, loading: false });
-                    console.log('this is the reponse .data   : ', response?.data);
                     useApiStore.getState().setAuthTokens(response.data.accessToken)
                     useSocketStore.getState().initializeSocket(response.data.user._id);
+                    toast.success('Login successful!');
                 } catch (error) {
+                    toast.error('Invalid credentials. Please try again.');
                     throw error;
                 }
             },
@@ -72,7 +77,9 @@ export const useAuthStore = create<AuthState>()(
                     set({ user: response.data.user, isAuthenticated: true, loading: false });
                     useApiStore.getState().setAuthTokens(response.data.accessToken)
                     useSocketStore.getState().initializeSocket(response.data.user._id);
+                    toast.success('Signup successful!');
                 } catch (error) {
+                    toast.error('An error occurred during signup.');
                     throw error;
                 }
             },
@@ -83,6 +90,7 @@ export const useAuthStore = create<AuthState>()(
                 useSocketStore.getState().disconnectSocket();
                 useApiStore.getState().setAuthTokens('')
                 set({ user: null, isAuthenticated: false, onlineUsers: [], loading: false });
+                toast.success('Logged out successfully.');
             },
 
             fetchOnlineUser: async () => {
@@ -91,6 +99,7 @@ export const useAuthStore = create<AuthState>()(
                     set({ onlineUsers: response.data });
                 } catch (error) {
                     console.error('Error fetching online users:', error);
+                    toast.error('Failed to fetch online users.');
                 }
             },
 
@@ -98,10 +107,7 @@ export const useAuthStore = create<AuthState>()(
                 try {
                     set({ loading: true });
                     const refreshToken = localStorage.getItem('refreshToken') || '';
-                    console.log('this is the refreshToken : ', refreshToken);
-
                     const response = await useApiStore.getState().authAPI.getAccessToken(refreshToken);
-                    console.log('this is the response : ', response);
                     localStorage.setItem('accessToken', response.data.accessToken);
                     set({ loading: false });
                 } catch (error) {
@@ -114,7 +120,6 @@ export const useAuthStore = create<AuthState>()(
                 const token = localStorage.getItem('accessToken');
                 const refreshToken = localStorage.getItem('refreshToken');
 
-                // If we have a persisted auth state, set it first
                 const persistedAuth = useAuthStore.getState();
                 if (persistedAuth.isAuthenticated && persistedAuth.user) {
                     set({ loading: false });
@@ -133,7 +138,6 @@ export const useAuthStore = create<AuthState>()(
                         set({ user: response.data, isAuthenticated: true, loading: false });
                         useSocketStore.getState().initializeSocket(response.data._id);
                     } catch (error) {
-                        // Try to refresh the token if it's expired
                         if (refreshToken) {
                             try {
                                 const refreshResponse = await useApiStore.getState().authAPI.getAccessToken(refreshToken);
